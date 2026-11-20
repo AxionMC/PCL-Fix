@@ -1,0 +1,146 @@
+name: Build PCL Fix
+
+on:
+  push:
+    branches: [ main, master ]
+    paths:
+      - 'PCL Fix/**'
+      - '.github/workflows/**'
+  pull_request:
+    paths:
+      - 'PCL Fix/**'
+      - '.github/workflows/**'
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build PCL Fix
+    runs-on: windows-latest
+    env:
+      PCL_ARIA2_VERSION: 1.37.0
+
+    steps:
+
+    - name: Checkout
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 1
+        submodules: recursive
+
+    - name: Set Describe
+      shell: bash
+      run: |
+        describe=`git describe --tags --always 2>/dev/null || echo "dev-$(git rev-parse --short HEAD)"`
+        echo "describe=$describe" >> $GITHUB_ENV
+
+    - name: Setup MSBuild
+      uses: microsoft/setup-msbuild@v2
+      with:
+        msbuild-architecture: x64
+
+    - name: Update Help
+      continue-on-error: true
+      shell: pwsh
+      run: |
+        try {
+          git clone https://github.com/LTCatt/PCL2Help.git -b master --single-branch --depth 1 "$env:RUNNER_TEMP\PCL2Help"
+          Remove-Item "$env:RUNNER_TEMP\PCL2Help\.git" -Recurse -Force -ErrorAction SilentlyContinue
+          Compress-Archive -Path "$env:RUNNER_TEMP\PCL2Help\*" -DestinationPath "PCL Fix\Resources\Help.zip" -Force
+          Write-Host "帮助文档已更新"
+        } catch {
+          Write-Warning "更新帮助文档失败，沿用仓库内的 Help.zip：$($_.Exception.Message)"
+        }
+
+    - name: Replace Build Info
+      continue-on-error: true
+      shell: pwsh
+      run: |
+        $secret = "PCL Fix\Modules\ModSecret.vb"
+        $base = "PCL Fix\Modules\Base\ModBase.vb"
+        (Get-Content $secret -Raw) `
+          -replace 'Public OAuthClientId As String = If\(Environment.GetEnvironmentVariable\("PCL_MS_CLIENT_ID"\), ""\)', 'Public OAuthClientId As String = If(Environment.GetEnvironmentVariable("PCL_MS_CLIENT_ID"), "${{ secrets.CLIENT_ID }}")' `
+          | Set-Content $secret -Encoding UTF8
+        (Get-Content $secret -Raw) `
+          -replace 'Public CurseForgeAPIKey As String = If\(Environment.GetEnvironmentVariable\("PCL_CURSEFORGE_API_KEY"\), ""\)', 'Public CurseForgeAPIKey As String = If(Environment.GetEnvironmentVariable("PCL_CURSEFORGE_API_KEY"), "${{ secrets.CURSEFORGE_API_KEY }}")' `
+          | Set-Content $secret -Encoding UTF8
+        (Get-Content $base -Raw) `
+          -replace 'Public Const CommitHash As String = ""', 'Public Const CommitHash As String = "${{ github.sha }}"' `
+          | Set-Content $base -Encoding UTF8
+
+    - name: Restore NuGet Packages
+      run: dotnet restore PCLCS\PCLCS.csproj
+
+    - name: Build
+      run: msbuild "PCL Fix\PCL Fix.vbproj" -p:Configuration=Release -p:Platform=AnyCPU -m
+
+    - name: Download aria2c
+      shell: pwsh
+      run: |
+        $version = $env:PCL_ARIA2_VERSION
+        $urls = @(
+          "https://github.com/aria2/aria2/releases/download/release-$version/aria2-$version-win-64bit-build1.zip",
+          "https://ghproxy.net/https://github.com/aria2/aria2/releases/download/release-$version/aria2-$version-win-64bit-build1.zip",
+          "https://ghfast.top/https://github.com/aria2/aria2/releases/download/release-$version/aria2-$version-win-64bit-build1.zip"
+        )
+        $zip = Join-Path $env:RUNNER_TEMP "aria2.zip"
+        foreach ($url in $urls) {
+          try {
+            Write-Host "尝试下载 aria2c：$url"
+            Invoke-WebRequest -Uri $url -OutFile $zip -UseBasicParsing -TimeoutSec 120
+            if (Test-Path $zip) { break }
+          } catch {
+            Write-Warning "下载失败：$($_.Exception.Message)"
+          }
+        }
+        if (-not (Test-Path $zip)) { throw "无法下载 aria2c，构建中止" }
+        $extract = Join-Path $env:RUNNER_TEMP "aria2"
+        Expand-Archive -Path $zip -DestinationPath $extract -Force
+        $aria2c = Get-ChildItem $extract -Recurse -Filter "aria2c.exe" | Select-Object -First 1
+        if (-not $aria2c) { throw "压缩包中未找到 aria2c.exe" }
+        New-Item -ItemType Directory -Force -Path "dist" | Out-Null
+        Copy-Item $aria2c.FullName "dist\aria2c.exe" -Force
+        & "dist\aria2c.exe" --version
+
+    - name: Package
+      shell: pwsh
+      run: |
+        $config = "Release"
+        New-Item -ItemType Directory -Force -Path "dist" | Out-Null
+        # 优先从 obj 目录取，其次从 bin 目录取，兼容不同 MSBuild 输出位置
+        $exe = Get-ChildItem "PCL Fix\obj\$config" -Filter "PCLFix.exe" -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
+        if (-not $exe) {
+          $exe = Get-ChildItem "PCL Fix\bin" -Filter "PCLFix.exe" -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
+        }
+        if (-not $exe) {
+          Write-Host "未找到 PCLFix.exe，列出构建输出："
+          Get-ChildItem "PCL Fix\obj" -Recurse -Filter "*.exe" -ErrorAction SilentlyContinue | ForEach-Object { Write-Host $_.FullName }
+          Get-ChildItem "PCL Fix\bin" -Recurse -Filter "*.exe" -ErrorAction SilentlyContinue | ForEach-Object { Write-Host $_.FullName }
+          throw "构建产物 PCLFix.exe 不存在"
+        }
+        Write-Host "使用构建产物：$($exe.FullName)"
+        Copy-Item $exe.FullName "dist\PCL Fix.exe" -Force  # 以友好名称分发
+        # 附带运行所需的 JSON 组件（若构建输出目录中存在）
+        foreach ($dll in @("Newtonsoft.Json.dll", "NAudio.dll", "CacheCow.Client.dll", "CacheCow.Client.FileStore.dll", "CacheCow.Common.dll", "Ookii.Dialogs.Wpf.dll", "System.Net.Http.Formatting.dll", "ThrottleDebounce.dll", "Imazen.WebP.dll", "libwebp64.dll")) {
+          $found = Get-ChildItem "PCL Fix\obj\$config" -Filter $dll -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
+          if (-not $found) { $found = Get-ChildItem "PCL Fix\bin" -Filter $dll -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1 }
+          if ($found) { Copy-Item $found.FullName "dist\$dll" -Force }
+        }
+        Copy-Item "README.md" "dist\README.md" -Force -ErrorAction SilentlyContinue
+        Get-ChildItem "dist" | Format-Table Name, Length
+
+    - name: Upload Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: PCL-Fix-${{ env.describe }}
+        path: dist/**
+        if-no-files-found: error
+
+    - name: Upload Build Output (Debug)
+      if: failure()
+      uses: actions/upload-artifact@v4
+      with:
+        name: build-output-${{ env.describe }}
+        path: |
+          PCL Fix/obj/**
+          PCL Fix/bin/**
+        if-no-files-found: ignore
