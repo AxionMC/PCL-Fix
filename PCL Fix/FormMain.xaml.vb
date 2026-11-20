@@ -627,12 +627,8 @@ Public Class FormMain
     Public Shared Sub EndProgramForce(Optional ReturnCode As ProcessReturnValues = ProcessReturnValues.Success)
         On Error Resume Next
         IsProgramEnding = True
-        'PCL Fix：退出时结束 aria2c 引擎进程
-        Try
-            ModAria2.ShutdownEngineOnExit()
-        Catch ex As Exception
-            Logger.Warn(ex, "关闭 Aria2 引擎失败")
-        End Try
+        'PCL Fix：退出时结束 aria2c 引擎进程（ShutdownEngineOnExit 内部已吞掉全部异常）
+        ModAria2.ShutdownEngineOnExit()
         AniControlEnabled += 1
         If IsUpdateWaitingRestart Then UpdateRestart(False)
         If ReturnCode = ProcessReturnValues.Exception Then
