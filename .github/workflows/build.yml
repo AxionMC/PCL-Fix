@@ -22,7 +22,7 @@ jobs:
     steps:
 
     - name: Checkout
-      uses: actions/checkout@v4
+      uses: actions/checkout@v6
       with:
         fetch-depth: 1
         submodules: recursive
@@ -34,7 +34,7 @@ jobs:
         echo "describe=$describe" >> $GITHUB_ENV
 
     - name: Setup MSBuild
-      uses: microsoft/setup-msbuild@v2
+      uses: microsoft/setup-msbuild@v3
       with:
         msbuild-architecture: x64
 
@@ -71,7 +71,10 @@ jobs:
       run: dotnet restore PCLCS\PCLCS.csproj
 
     - name: Build
-      run: msbuild "PCL Fix\PCL Fix.vbproj" -p:Configuration=Release -p:Platform=AnyCPU -m
+      shell: pwsh
+      run: |
+        msbuild "PCL Fix\PCL Fix.vbproj" -p:Configuration=Release -p:Platform=AnyCPU -m "-flp:LogFile=build.log;Verbosity=normal" 2>&1 | Tee-Object -FilePath msbuild.out.log
+        if ($LASTEXITCODE -ne 0) { throw "MSBuild 失败，退出码 $LASTEXITCODE（详情见 build.log 工件）" }
 
     - name: Download aria2c
       shell: pwsh
@@ -129,15 +132,25 @@ jobs:
         Get-ChildItem "dist" | Format-Table Name, Length
 
     - name: Upload Artifact
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v7
       with:
         name: PCL-Fix-${{ env.describe }}
         path: dist/**
         if-no-files-found: error
 
+    - name: Upload Build Log
+      if: always()
+      uses: actions/upload-artifact@v7
+      with:
+        name: build-log-${{ env.describe }}
+        path: |
+          build.log
+          msbuild.out.log
+        if-no-files-found: ignore
+
     - name: Upload Build Output (Debug)
       if: failure()
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v7
       with:
         name: build-output-${{ env.describe }}
         path: |

@@ -822,6 +822,7 @@ Retry:
                 If Aria2Pending Then
                     SyncLock LockAria2
                         If Aria2Gid IsNot Nothing Then Return Nothing '已有进行中的 Aria2 任务
+                        If NetTaskThreadCount >= NetTaskThreadLimit Then Return Nothing '与内置引擎共用并发上限
                         If State >= NetState.Merging OrElse State = NetState.WaitingToCheck Then Return Nothing
                         Dim Aria2Source As NetSource = GetSource()
                         If Aria2Source Is Nothing Then Return Nothing
@@ -1135,10 +1136,20 @@ SourceBreak:
                 Dim Aria2Urls As List(Of String) = Sources.Where(Function(s) Not s.IsFailed).Select(Function(s) s.Url).ToList
                 If Not Aria2Urls.Any() Then Aria2Urls = Sources.Select(Function(s) s.Url).ToList
                 Dim Aria2Ua As String = $"PCL2/{VersionBaseName}.{CInt(BuildType)}"
-                If SimulateBrowserHeaders Then Aria2Ua &= " Mozilla/5.0 AppleWebKit/537.36 Chrome/63.0.3239.132 Safari/537.36"
+                Dim Aria2Headers As New List(Of String)
+                '与内置引擎的 SecretHeadersSign 保持一致：百度系需要特殊 UA，CurseForge CDN 需要 API Key
+                If Aria2Urls.Any(Function(u) u.Contains("baidupcs.com") OrElse u.Contains("baidu.com")) Then
+                    Aria2Ua = "LogStatistic"
+                ElseIf SimulateBrowserHeaders Then
+                    Aria2Ua &= " Mozilla/5.0 AppleWebKit/537.36 Chrome/63.0.3239.132 Safari/537.36"
+                End If
+                If Aria2Urls.Any(Function(u) u.Contains("api.curseforge.com") OrElse u.Contains("forgecdn.net")) AndAlso
+                   Not String.IsNullOrEmpty(CurseForgeAPIKey) Then
+                    Aria2Headers.Add("x-api-key: " & CurseForgeAPIKey)
+                End If
                 Dim Aria2Referer As String = $"http://{VersionCode}.open.pcl2.server/"
                 Gid = ModAria2.AddUri(Aria2Urls, Aria2Dir, Aria2Out,
-                                      Settings.Get(Of Integer)("ToolDownloadAria2Thread"), Nothing, Aria2Ua, Aria2Referer)
+                                      Settings.Get(Of Integer)("ToolDownloadAria2Thread"), Aria2Headers, Aria2Ua, Aria2Referer)
                 SyncLock LockAria2
                     Aria2Gid = Gid
                 End SyncLock
