@@ -28,6 +28,7 @@
 ### 3. 新增 aria2c（Aria2）多线程下载引擎
 
 - 新增 `Modules/Base/ModAria2.vb`：本地 `aria2c` 的 JSON-RPC 客户端与进程管理
+- 并发/分段线程上限提升到 **128**（`split=128`、`max-concurrent-downloads=128`、`bt-max-peers=128`；aria2 对单个服务器仍硬限制 16 条连接，多源/多任务共用 128 条）
 - 文件大小 **≥ 1 MB** 时，PCL 的探测线程会把整个文件交接给 aria2 下载：
   - 真正的分段并发（`split` / `max-connection-per-server`，上限 16）
   - 多下载源自动回退（`aria2.addUri` 直接接收全部镜像 URL）
@@ -45,7 +46,26 @@
 - **Aria2 分段线程数**：1–16（`ToolDownloadAria2Thread`，默认 16）
 - **Aria2 程序路径**：留空则自动查找/自动下载（`ToolDownloadAria2Path`）
 
-### 4. GitHub Actions 自动构建
+### 4. 界面重做（现代化）
+
+- 标题栏向量 PCL 字形换成 **PCL Fix** 文字标识（不再显示 "PCL"）
+- 默认窗口 **1200×780**，最小 **1040×660**；旧版本保存过小的尺寸会自动升级
+- 窗口大圆角 **26px**（`RectForm` 圆角裁剪）
+- **流体云背景**：3 个缓慢漂移的半透明模糊色块，`SineEase` 往返动画
+- **在线二次元壁纸**：启动时从 `t.alcy.cc` / `loliapi.com` / `anosu.top` 依次尝试获取随机动漫壁纸，支持 webp，缓存到 `PCL\Pictures\OnlineWallpaper.img`
+  - 若用户自己在 `PCL\Pictures` 放了图，优先使用本地图
+  - 设置 → 个性化：新增「启动时从网络获取二次元壁纸」开关与「换一张网络壁纸」按钮
+
+### 5. BT 种子 / 磁力下载器
+
+- 新增 `Modules/Base/ModTorrent.vb` + 窗口 `Pages/PageOther/FrmTorrent.xaml`（大圆角、卡片式任务列表）
+- 入口：**设置 → 系统 → 下载 → 打开 BT 种子下载器**
+- 支持粘贴磁力链接、选择 `.torrent` 文件、直接拖拽种子进窗口
+- 走 aria2 的 BitTorrent 引擎：`bt-max-peers=128`、DHT/LPD/PEX、`seed-time=0`（下载完不做种）
+- 每个任务显示进度、速度、连接数，可暂停 / 继续 / 打开文件夹 / 删除
+- 保存目录可在窗口内更改（`ToolTorrentFolder`，默认 `PCL\BT`）
+
+### 6. GitHub Actions 自动构建
 
 `.github/workflows/build.yml`：
 

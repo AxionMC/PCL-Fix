@@ -804,7 +804,8 @@ Public Class FormMain
         End Select
         FrmSetupUI?.CardLogo.TriggerForceResize()
         '标题栏文本
-        LabTitleLogo.Text = Settings.Get(Of String)("UiLogoText")
+        Dim LogoText As String = Settings.Get(Of String)("UiLogoText")
+        LabTitleLogo.Text = If(String.IsNullOrWhiteSpace(LogoText), "PCL Fix", LogoText)
         '标题栏文本是否居左
         PanTitleMain.ColumnDefinitions(0).Width = New GridLength(If(Settings.Get(Of Boolean)("UiLogoLeft") AndAlso Settings.Get(Of Integer)("UiLogoType") = 0, 0, 1), GridUnitType.Star)
     End Sub
