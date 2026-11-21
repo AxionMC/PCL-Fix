@@ -167,7 +167,7 @@ Public Module ModTorrent
     ''' <summary>
     ''' 继续任务。
     ''' </summary>
-    Public Sub Resume(TaskInfo As BtTask)
+    Public Sub ResumeTask(TaskInfo As BtTask)
         If TaskInfo Is Nothing Then Return
         ModAria2.UnpauseGid(TaskInfo.Gid)
         TaskInfo.State = "active"

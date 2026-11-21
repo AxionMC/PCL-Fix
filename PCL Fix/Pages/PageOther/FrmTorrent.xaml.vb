@@ -190,7 +190,7 @@ Public Class FrmTorrent
         AddHandler BtnPause.Click,
             Sub(s, e)
                 If TaskInfo.State = "paused" Then
-                    ModTorrent.Resume(TaskInfo)
+                    ModTorrent.ResumeTask(TaskInfo)
                 Else
                     ModTorrent.Pause(TaskInfo)
                 End If
