@@ -26,6 +26,7 @@
                             <RowDefinition Height="28" />
                             <RowDefinition Height="7" />
                             <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
                         </Grid.RowDefinitions>
                         <TextBlock VerticalAlignment="Center" HorizontalAlignment="Left" Text="文件下载源" Margin="0,0,25,0" />
                         <local:MyComboBox x:Name="ComboDownloadSource" Grid.ColumnSpan="2" local:SettingService.Key="ToolDownloadSource" Grid.Column="1">
@@ -46,12 +47,15 @@
                         <local:MyCheckBox x:Name="CheckDownloadAria2" Grid.Row="6" Grid.Column="1" local:SettingService.Key="ToolDownloadAria2" Text="使用 aria2c 引擎下载大于 1MB 的文件（推荐）"
                                           ToolTip="开启后，大于 1MB 的文件会交给 aria2c 处理，支持真正的分段并发、多下载源回退与断点续传。&#xa;若本地没有 aria2c.exe，会自动从官方 Release 或镜像下载一次。" />
                         <TextBlock Grid.Row="7" VerticalAlignment="Center" HorizontalAlignment="Left" Text="Aria2 分段线程数" Margin="0,0,25,0" />
-                        <local:MySlider x:Name="SliderDownloadAria2Thread" Grid.Row="7" local:SettingService.Key="ToolDownloadAria2Thread" MaxValue="16" Value="16" Grid.Column="1"
-                                        ToolTip="aria2 对单个文件使用的分段连接数，上限为 16。&#xa;受 aria2 自身限制，单服务器最大并发连接数也是 16。" />
+                        <local:MySlider x:Name="SliderDownloadAria2Thread" Grid.Row="7" local:SettingService.Key="ToolDownloadAria2Thread" MaxValue="128" Value="128" Grid.Column="1"
+                                        ToolTip="aria2 的并发/分段线程数，最高 128。&#xa;aria2 对单个服务器硬限制为 16 条连接，多镜像源与多任务会共用这 128 条连接；BT 的 peer 上限同样是 128。" />
                         <TextBlock Grid.Row="8" VerticalAlignment="Top" HorizontalAlignment="Left" Text="Aria2 程序路径" Margin="0,5,25,5" />
                         <local:MyTextBox x:Name="TextDownloadAria2Path" Grid.Row="8" Grid.Column="1" local:SettingService.Key="ToolDownloadAria2Path" MaxLength="260"
                                          HintText="留空则自动查找 / 自动下载 aria2c.exe"
                                          ToolTip="可手动指定 aria2c.exe 的完整路径。&#xa;留空时会在启动器目录、系统 PATH 中查找，找不到会自动下载。" />
+                        <TextBlock Grid.Row="11" VerticalAlignment="Center" HorizontalAlignment="Left" Text="BT 下载" Margin="0,10,25,0" />
+                        <local:MyButton x:Name="BtnTorrent" Grid.Row="11" Grid.Column="1" Text="打开 BT 种子下载器" TextPadding="14" Height="30" Padding="16,0" HorizontalAlignment="Left" Margin="0,10,0,0"
+                                        ToolTip="支持磁力链接与 .torrent 种子文件，使用 aria2 的 BT 引擎，128 连接。" />
                         <TextBlock VerticalAlignment="Top" Grid.Row="10" HorizontalAlignment="Left" Text="目标文件夹" Margin="0,5,25,5" />
                         <TextBlock Margin="0,5" HorizontalAlignment="Left" Text="请在 启动 → 版本选择 → 文件夹列表 中更改下载目标文件夹。&#xa;在某个文件夹或游戏版本上右键，即可选择打开对应文件夹。" Grid.Row="10" Grid.Column="1" VerticalAlignment="Center" Opacity="0.5" />
                     </Grid>

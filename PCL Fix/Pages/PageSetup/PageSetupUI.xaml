@@ -143,6 +143,10 @@
                                         ToolTip="高度的模糊会严重掉帧，请谨慎。&#13;不建议在制作整合包时开启模糊，以确保 PCL 在低性能电脑上可以流畅运行。" />
                     </Grid>
                     <local:MyCheckBox local:SettingService.Key="UiBackgroundColorful" Text="叠加彩色背景" Margin="-1,0,0,8" Height="22" />
+                    <local:MyCheckBox local:SettingService.Key="UiBackgroundOnline" Text="启动时从网络获取二次元壁纸" Margin="-1,0,0,8" Height="22"
+                                      ToolTip="从公开的二次元壁纸 API 随机获取一张动漫壁纸作为窗口背景。&#xa;如果你在背景图片文件夹里放了自己的图片，会优先使用本地图片。" />
+                    <local:MyButton x:Name="BtnBackgroundOnline" MinWidth="170" Text="换一张网络壁纸" Padding="13,0" Margin="0,0,0,10" HorizontalAlignment="Left"
+                                    ToolTip="立即从壁纸 API 重新获取一张并应用" />
                     <Grid Height="35" Margin="0,2,0,0">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="Auto" SharedSizeGroup="Button" />

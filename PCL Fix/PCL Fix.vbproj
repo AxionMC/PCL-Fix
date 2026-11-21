@@ -307,6 +307,10 @@
     <Compile Include="Pages\PageLink\PageLinkMain.xaml.vb">
       <DependentUpon>PageLinkMain.xaml</DependentUpon>
     </Compile>
+    <Compile Include="Pages\PageOther\FrmTorrent.xaml.vb">
+      <DependentUpon>FrmTorrent.xaml</DependentUpon>
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="Pages\PageOther\PageOtherHelpDetail.xaml.vb">
       <DependentUpon>PageOtherHelpDetail.xaml</DependentUpon>
     </Compile>
@@ -332,6 +336,8 @@
     <Compile Include="Modules\Base\ModLoader.vb" />
     <Compile Include="Modules\Base\ModNet.vb" />
     <Compile Include="Modules\Base\ModAria2.vb" />
+    <Compile Include="Modules\Base\ModBackground.vb" />
+    <Compile Include="Modules\Base\ModTorrent.vb" />
     <Compile Include="Modules\Base\ModValidate.vb" />
     <Compile Include="Modules\Minecraft\ModDownload.vb" />
     <Compile Include="Modules\Minecraft\ModLaunch.vb" />
@@ -566,6 +572,10 @@
       <SubType>Designer</SubType>
     </None>
     <Page Include="Pages\PageLink\PageLinkMain.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+    <Page Include="Pages\PageOther\FrmTorrent.xaml">
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </Page>

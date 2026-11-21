@@ -78,6 +78,10 @@ Public Class PageSetupUI
     Private Sub BtnBackgroundRefresh_Click(sender As Object, e As EventArgs) Handles BtnBackgroundRefresh.Click
         BackgroundRefresh(True, True)
     End Sub
+    Private Sub BtnBackgroundOnline_Click(sender As Object, e As EventArgs) Handles BtnBackgroundOnline.Click
+        Hint("正在获取网络壁纸……", HintType.Blue, False)
+        ModBackground.RefreshOnlineWallpaperAsync(True)
+    End Sub
     Public Sub BackgroundRefreshUI(Show As Boolean, Count As Integer)
         If IsNothing(PanBackgroundOpacity) Then Return
         If Show Then

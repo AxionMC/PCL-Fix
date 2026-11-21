@@ -1,5 +1,6 @@
 Imports System.ComponentModel
 Imports System.Windows.Interop
+Imports System.Windows.Media.Animation
 
 Public Class FormMain
 
@@ -361,6 +362,9 @@ Public Class FormMain
         UpdateBackgroundAndTitleBar()
         PageSetupUI.HiddenRefresh()
         PageSetupUI.BackgroundRefresh(False, True)
+        'PCL Fix：流体云背景动画 + 在线二次元壁纸
+        StartFluidCloud()
+        RefreshWallpaperOnStartup()
         MusicRefreshPlay(False, True)
         '扩展按钮
         BtnExtraDownload.ShowCheck = AddressOf BtnExtraDownload_ShowCheck
@@ -378,15 +382,16 @@ Public Class FormMain
         Resizer.addResizerRightDown(ResizerRB)
         Resizer.addResizerRightUp(ResizerRT)
         Resizer.addResizerUp(ResizerT)
-        'PLC 彩蛋
-        If RandomInteger(1, 1000) = 233 Then
-            ShapeTitleLogo.Data = New GeometryConverter().ConvertFromString("M26,29 v-25 h6 a7,7 180 0 1 0,14 h-6 M83,6.5 a10,11.5 180 1 0 0,18 M48,2.5 v24.5 h13.5")
-        End If
         '加载窗口
         ThemeRefreshMain()
         Try
             Height = Settings.Get(Of Integer)("WindowHeight")
             Width = Settings.Get(Of Integer)("WindowWidth")
+            'PCL Fix：旧版本保存的窗口尺寸过小，自动升级到可用的新尺寸
+            If Width < 1000 Then Width = 1200
+            If Height < 660 Then Height = 780
+            If Width > GetWPFSize(My.Computer.Screen.WorkingArea.Width) - 20 Then Width = GetWPFSize(My.Computer.Screen.WorkingArea.Width) - 20
+            If Height > GetWPFSize(My.Computer.Screen.WorkingArea.Height) - 20 Then Height = GetWPFSize(My.Computer.Screen.WorkingArea.Height) - 20
         Catch ex As Exception '修复 #2019
             Logger.Error(ex, "读取窗口默认大小失败", LogBehavior.Toast)
             Height = MinHeight + 100
@@ -802,6 +807,62 @@ Public Class FormMain
         LabTitleLogo.Text = Settings.Get(Of String)("UiLogoText")
         '标题栏文本是否居左
         PanTitleMain.ColumnDefinitions(0).Width = New GridLength(If(Settings.Get(Of Boolean)("UiLogoLeft") AndAlso Settings.Get(Of Integer)("UiLogoType") = 0, 0, 1), GridUnitType.Star)
+    End Sub
+
+#End Region
+
+#Region "PCL Fix：流体云与在线壁纸"
+
+    ''' <summary>
+    ''' 启动流体云背景动画（缓慢漂移的半透明模糊色块）。
+    ''' </summary>
+    Public Sub StartFluidCloud()
+        Try
+            AnimateCloud(CloudAT, 0, 260, 0, 150, 26)
+            AnimateCloud(CloudBT, 0, -220, 0, -120, 34)
+            AnimateCloud(CloudCT, 0, 180, 0, 190, 42)
+        Catch ex As Exception
+            Logger.Warn(ex, "启动流体云动画失败")
+        End Try
+    End Sub
+
+    Private Sub AnimateCloud(Transform As TranslateTransform, FromX As Double, ToX As Double, FromY As Double, ToY As Double, Seconds As Double)
+        If Transform Is Nothing Then Return
+        Dim Ease As New SineEase With {.EasingMode = EasingMode.EaseInOut}
+        Transform.BeginAnimation(TranslateTransform.XProperty, New DoubleAnimation With {
+            .From = FromX, .To = ToX, .Duration = TimeSpan.FromSeconds(Seconds),
+            .AutoReverse = True, .RepeatBehavior = RepeatBehavior.Forever, .EasingFunction = Ease})
+        Transform.BeginAnimation(TranslateTransform.YProperty, New DoubleAnimation With {
+            .From = FromY, .To = ToY, .Duration = TimeSpan.FromSeconds(Seconds * 1.37),
+            .AutoReverse = True, .RepeatBehavior = RepeatBehavior.Forever, .EasingFunction = Ease})
+    End Sub
+
+    ''' <summary>
+    ''' 启动时刷新在线壁纸。若用户自己放了本地背景图，则优先使用本地图。
+    ''' </summary>
+    Public Sub RefreshWallpaperOnStartup()
+        RunInNewThread(
+        Sub()
+            Try
+                If Not Settings.Get(Of Boolean)("UiBackgroundOnline") Then Return
+                Dim Folder As String = Paths.Base & "PCL\Pictures\"
+                Dim HasLocal As Boolean = False
+                Try
+                    For Each File In DirectoryUtils.EnumerateFiles(Folder, True)
+                        Dim FileName As String = PathUtils.GetLastPart(File).ToLower
+                        If FileName <> "onlinewallpaper.img" AndAlso FileName <> "onlinewallpaper.img.aria2" Then
+                            HasLocal = True
+                            Exit For
+                        End If
+                    Next
+                Catch
+                End Try
+                If HasLocal Then Return
+                ModBackground.RefreshOnlineWallpaper(True, False)
+            Catch ex As Exception
+                Logger.Warn(ex, "启动时刷新在线壁纸失败")
+            End Try
+        End Sub, "在线壁纸", ThreadPriority.BelowNormal)
     End Sub
 
 #End Region

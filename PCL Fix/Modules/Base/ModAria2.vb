@@ -27,7 +27,15 @@ Public Module ModAria2
     ''' <summary>
     ''' aria2 分段数上限。aria2 单服务器最大并发连接数被限制在 16。
     ''' </summary>
-    Public Const Aria2MaxSplit As Integer = 16
+    Public Const Aria2MaxSplit As Integer = 128
+    ''' <summary>
+    ''' 单个服务器允许的最大连接数（aria2 硬限制为 16）。
+    ''' </summary>
+    Public Const Aria2MaxPerServer As Integer = 16
+    ''' <summary>
+    ''' BT 下载允许的最大连接数。
+    ''' </summary>
+    Public Const Aria2BtMaxPeers As Integer = 128
 
 #End Region
 
@@ -238,9 +246,17 @@ Public Module ModAria2
                     "--rpc-listen-port=" & ServerPort,
                     "--rpc-secret=" & ServerSecret,
                     "--rpc-max-request-size=16M",
-                    "--max-concurrent-downloads=16",
+                    "--max-concurrent-downloads=" & Aria2MaxSplit,
+                    "--max-connection-per-server=" & Aria2MaxPerServer,
+                    "--bt-max-peers=" & Aria2BtMaxPeers,
+                    "--bt-enable-lpd=true",
+                    "--enable-dht=true",
+                    "--enable-dht6=false",
+                    "--dht-listen-port=6881-6999",
+                    "--listen-port=6881-6999",
+                    "--seed-time=0",
+                    "--bt-save-metadata=false",
                     "--split=" & Aria2MaxSplit,
-                    "--max-connection-per-server=" & Aria2MaxSplit,
                     "--min-split-size=1M",
                     "--file-allocation=none",
                     "--continue=true",
@@ -367,7 +383,7 @@ Public Module ModAria2
             {"allow-overwrite", "true"},
             {"auto-file-renaming", "false"},
             {"split", SplitCount.ToString()},
-            {"max-connection-per-server", SplitCount.ToString()},
+            {"max-connection-per-server", Math.Min(SplitCount, Aria2MaxPerServer).ToString()},
             {"min-split-size", "1M"},
             {"file-allocation", "none"},
             {"check-certificate", "false"},
@@ -432,6 +448,77 @@ Public Module ModAria2
             Return 0
         End Try
     End Function
+
+    ''' <summary>
+    ''' 添加磁力链接任务（BT），返回 GID。
+    ''' </summary>
+    Public Function AddMagnet(Magnet As String, Dir As String) As String
+        If Not EnsureServer() Then Throw New Exception("aria2c 引擎不可用，无法开始 BT 下载")
+        Dim UriArray As New JArray From {New JValue(Magnet.Trim())}
+        Dim Result = Rpc("aria2.addUri", UriArray, BtTaskOptions(Dir))
+        If Result Is Nothing Then Throw New Exception("aria2 未返回有效的 GID")
+        Logger.Info($"aria2 BT 任务已创建（磁力）：{Result}")
+        Return Result.ToString()
+    End Function
+
+    ''' <summary>
+    ''' 添加 .torrent 种子文件任务，返回 GID。
+    ''' </summary>
+    Public Function AddTorrentFile(TorrentPath As String, Dir As String) As String
+        If Not EnsureServer() Then Throw New Exception("aria2c 引擎不可用，无法开始 BT 下载")
+        If Not FileUtils.Exists(TorrentPath) Then Throw New Exception("种子文件不存在：" & TorrentPath)
+        Dim TorrentBase64 As String = Convert.ToBase64String(IO.File.ReadAllBytes(TorrentPath))
+        Dim Result = Rpc("aria2.addTorrent", New JValue(TorrentBase64), New JArray(), BtTaskOptions(Dir))
+        If Result Is Nothing Then Throw New Exception("aria2 未返回有效的 GID")
+        Logger.Info($"aria2 BT 任务已创建（种子文件）：{Result}")
+        Return Result.ToString()
+    End Function
+
+    ''' <summary>
+    ''' 生成 BT 任务的选项。
+    ''' </summary>
+    Private Function BtTaskOptions(Dir As String) As JObject
+        DirectoryUtils.Create(Dir)
+        Return New JObject From {
+            {"dir", Dir},
+            {"bt-max-peers", Aria2BtMaxPeers.ToString()},
+            {"seed-time", "0"},
+            {"follow-torrent", "true"},
+            {"bt-save-metadata", "false"},
+            {"bt-enable-lpd", "true"},
+            {"enable-dht", "true"},
+            {"enable-peer-exchange", "true"},
+            {"file-allocation", "none"},
+            {"check-certificate", "false"},
+            {"retry-wait", "1"},
+            {"max-tries", "5"},
+            {"bt-tracker-connect-timeout", "10"},
+            {"bt-tracker-timeout", "10"},
+            {"bt-request-timeout", "10"}
+        }
+    End Function
+
+    ''' <summary>
+    ''' 暂停任务。
+    ''' </summary>
+    Public Sub PauseGid(Gid As String)
+        Try
+            Rpc("aria2.pause", Gid)
+        Catch ex As Exception
+            Logger.Warn(ex, $"暂停 aria2 任务失败：{Gid}")
+        End Try
+    End Sub
+
+    ''' <summary>
+    ''' 继续任务。
+    ''' </summary>
+    Public Sub UnpauseGid(Gid As String)
+        Try
+            Rpc("aria2.unpause", Gid)
+        Catch ex As Exception
+            Logger.Warn(ex, $"继续 aria2 任务失败：{Gid}")
+        End Try
+    End Sub
 
 #End Region
 

@@ -55,6 +55,15 @@ Public Class PageSetupSystem
     End Sub
 
     '识别码/土豆码替代入口
+    Private Sub BtnTorrent_Click(sender As Object, e As RoutedEventArgs) Handles BtnTorrent.Click
+        Try
+            Dim Frm As New FrmTorrent With {.Owner = FrmMain}
+            Frm.Show()
+        Catch ex As Exception
+            Logger.Warn(ex, "打开 BT 下载器失败")
+            Hint("打开 BT 下载器失败：" & ex.Message, HintType.Red)
+        End Try
+    End Sub
     Private Sub BtnSystemIdentify_Click(sender As Object, e As MouseButtonEventArgs) Handles BtnSystemIdentify.Click
         PageOtherAbout.CopyIdentify()
     End Sub
