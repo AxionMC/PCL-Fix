@@ -57,12 +57,17 @@ jobs:
       run: |
         $secret = "PCL Fix\Modules\ModSecret.vb"
         $base = "PCL Fix\Modules\Base\ModBase.vb"
-        (Get-Content $secret -Raw) `
-          -replace 'Public OAuthClientId As String = If\(Environment.GetEnvironmentVariable\("PCL_MS_CLIENT_ID"\), ""\)', 'Public OAuthClientId As String = If(Environment.GetEnvironmentVariable("PCL_MS_CLIENT_ID"), "${{ secrets.CLIENT_ID }}")' `
-          | Set-Content $secret -Encoding UTF8
-        (Get-Content $secret -Raw) `
-          -replace 'Public CurseForgeAPIKey As String = If\(Environment.GetEnvironmentVariable\("PCL_CURSEFORGE_API_KEY"\), ""\)', 'Public CurseForgeAPIKey As String = If(Environment.GetEnvironmentVariable("PCL_CURSEFORGE_API_KEY"), "${{ secrets.CURSEFORGE_API_KEY }}")' `
-          | Set-Content $secret -Encoding UTF8
+        # 仅在配置了对应 Secret 时才覆盖源码中的默认值，避免空值把可用默认值抹掉
+        $clientId = "${{ secrets.CLIENT_ID }}"
+        $cfKey = "${{ secrets.CURSEFORGE_API_KEY }}"
+        if ($clientId) {
+          (Get-Content $secret -Raw) -replace 'Public OAuthClientId As String = [^\r\n]*', "Public OAuthClientId As String = `"$clientId`"" | Set-Content $secret -Encoding UTF8
+          Write-Host "已注入 CLIENT_ID"
+        } else { Write-Host "未配置 CLIENT_ID，使用源码默认值" }
+        if ($cfKey) {
+          (Get-Content $secret -Raw) -replace 'Public CurseForgeAPIKey As String = [^\r\n]*', "Public CurseForgeAPIKey As String = `"$cfKey`"" | Set-Content $secret -Encoding UTF8
+          Write-Host "已注入 CURSEFORGE_API_KEY"
+        } else { Write-Host "未配置 CURSEFORGE_API_KEY，保持为空（走镜像）" }
         (Get-Content $base -Raw) `
           -replace 'Public Const CommitHash As String = ""', 'Public Const CommitHash As String = "${{ github.sha }}"' `
           | Set-Content $base -Encoding UTF8
