@@ -1,4 +1,5 @@
 Imports System.Windows.Threading
+Imports System.Windows.Shapes
 
 ''' <summary>
 ''' PCL Fix：BT 种子 / 磁力下载窗口。
